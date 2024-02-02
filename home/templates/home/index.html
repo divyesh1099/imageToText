@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Image and Extract Text</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-800 text-gray-300">
+    <div class="container mx-auto px-4 py-8">
+        <div class="max-w-md mx-auto bg-gray-700 rounded-xl shadow-md overflow-hidden md:max-w-lg">
+            <div class="md:flex">
+                <div class="w-full p-6">
+                    <h1 class="text-center text-2xl font-bold mb-4">Divyesh's Text from Image Extractor</h1>
+                    <h2 class="text-lg font-semibold text-gray-300 mb-4">Upload Image</h2>
+                    <form method="post" enctype="multipart/form-data" class="space-y-4 py-4">
+                        {% csrf_token %}
+                        <div class="flex flex-wrap -mx-3 mb-6">
+                            <div class="w-full px-3">
+                                <label class="block uppercase tracking-wide text-gray-400 text-xs font-bold mb-2" for="grid-image">
+                                    Image
+                                </label>
+                                {{ form.image }}
+                                <button type="submit" class="mt-4 bg-blue-600 hover:bg-blue-800 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                                    Upload
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                    {% if extracted_text %}
+                    <div class="px-3 py-4 bg-gray-600 rounded-lg mt-4">
+                        <h3 class="text-lg font-semibold text-gray-100">Extracted Text:</h3>
+                        <p class="text-gray-300 mt-2">{{ extracted_text }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        document.body.addEventListener('paste', async (event) => {
+            let items = (event.clipboardData || event.originalEvent.clipboardData).items;
+            for (let index in items) {
+                let item = items[index];
+                if (item.kind === 'file') {
+                    let blob = item.getAsFile();
+                    let formData = new FormData();
+                    formData.append('image', blob, 'pasted-image.png'); // Assuming 'image' is the field name expected by your Django form
+        
+                    // Display the image preview
+                    let reader = new FileReader();
+                    reader.onload = function(e) {
+                        let img = document.createElement('img');
+                        img.src = e.target.result;
+                        img.style.maxWidth = '100%'; // Ensuring the image is not too large
+                        img.classList.add('mt-4', 'rounded'); // Tailwind CSS classes
+                        document.querySelector('.container').appendChild(img); // Adjust this selector based on where you want to display the image
+                    };
+                    reader.readAsDataURL(blob);
+        
+                    fetch('/', { // Post to the root URL where your index view is set up
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest', // Important for Django view to recognize this as an AJAX request
+                            'X-CSRFToken': getCookie('csrftoken'), // CSRF token is required for POST requests
+                        },
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            // Display extracted text
+                            let textDiv = document.createElement('div');
+                            textDiv.classList.add('text', 'mt-4', 'bg-gray-600', 'text-gray-100', 'p-4', 'rounded-lg'); // Tailwind CSS classes
+                            textDiv.textContent = data.extracted_text || 'Text could not be extracted.';
+                            document.querySelector('.container').appendChild(textDiv); // Adjust this selector based on where you want to display the extracted text
+                        } else {
+                            // Handle form not valid or other server-side errors
+                            alert("Failed to upload image: " + data.message);
+                        }
+                    })
+                    .catch(error => console.error('Error:', error));
+                }
+            }
+        });
+        
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        </script>
+        
+</body>
+</html>
+    

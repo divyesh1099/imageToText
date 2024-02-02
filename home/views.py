@@ -4,6 +4,7 @@ from .forms import ImageUploadForm
 from .models import UploadedImage
 import pytesseract
 from PIL import Image
+import os
 
 def extract_text_from_image(image_path):
     image = Image.open(image_path)
@@ -17,6 +18,9 @@ def index(request):
             uploaded_image = form.save()
             image_path = uploaded_image.image.path
             extracted_text = extract_text_from_image(image_path)
+
+            # Delete the image file after processing
+            os.remove(image_path)
 
             # Check if the request is AJAX
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
